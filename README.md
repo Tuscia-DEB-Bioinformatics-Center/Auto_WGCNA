@@ -86,6 +86,7 @@ BiocManager::install("WGCNA")
 install.packages("optparse")
 install.packages("tidyverse")
 install.packages("igraph")
+install.packages("ggrepel")
 ```
 
 
