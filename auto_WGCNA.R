@@ -572,6 +572,92 @@ plot_expression_profiles <- function(vst_mat, gene_modules, workdir) {
   unlink("module_profiles", recursive = TRUE)
 }
 
+plot_boxplots <- function(pheno_dt, colors, eigengenes_matrix_m) {
+  pheno_df <- data.frame(sample = rownames(pheno_dt))
+  pheno_df <- cbind(pheno_df, pheno_dt)
+
+  table_df <- left_join(
+    eigengenes_matrix_m,
+    pheno_df,
+    by = "sample"
+  )
+
+  write.table(
+    table_df,
+    file = "table.tsv",
+    sep = "\t",
+    row.names = FALSE,
+    quote = FALSE
+  )
+
+  for (col in unique(colors)) {
+    mask <- table_df$name %in% col
+
+    submod <- subset(table_df, mask)
+
+    for (con in colnames(table_df)[4:ncol(table_df)]) {
+      # Create boxplot chart
+      boxplot <- ggplot(
+        submod,
+        aes(x = submod[[con]], y = value, fill = submod[[con]])
+      ) +
+        geom_boxplot(outlier.shape = NA, alpha = 0.6) +
+        geom_jitter(width = 0.2, size = 1, alpha = 0.8) +
+        geom_text_repel(
+          aes(label = sample),
+          size = 1,
+          max.overlaps = Inf,
+          position = position_jitter(width = 0.2),
+          show.legend = FALSE
+        ) +
+        facet_wrap(~ name, scales = "free_y") +
+        theme_bw() +
+        labs(
+          x = "Condition",
+          y = "Normalized expression (Module Eigengene)",
+          title = "Module expression for condition"
+        ) +
+        theme(
+          legend.position = "none",
+          strip.text = element_text(face = "bold")
+        )
+
+      # Create box plot name
+      boxplot_tiff <- paste("boxplot_", col, "_", con, ".tiff", sep = "")
+      boxplot_png <- paste("profile_", col, "_", con, ".png", sep = "")
+
+      # Export boxplot to TIFF file
+      ggsave(
+        boxplot_tiff,
+        plot = boxplot,
+        path = "boxplots",
+        width = 3 * length(unique(submod[[con]])),
+        height = 4,
+        dpi = 600,
+        device = "tiff",
+        compression = "zip"
+      )
+
+      # Export profiles to PNG file
+      ggsave(
+        boxplot_png,
+        plot = boxplot,
+        path = "boxplots",
+        width = 3 * length(unique(submod[[con]])),
+        height = 4,
+        dpi = 150
+      )
+    }
+  }
+
+  zip(
+    "charts/boxplots.zip",
+    files = "boxplots/"
+  )
+
+  unlink("boxplots", recursive = TRUE)
+}
+
 identify_hub_genes <- function(vst_for_wgcna, colors, picked_power) {
   # Calculate hub genes for each module
   hubs <- chooseTopHubInEachModule(
@@ -722,6 +808,7 @@ main <- function() {
   suppressWarnings(suppressPackageStartupMessages({
     library(WGCNA)
     library(tidyverse)
+    library(ggrepel)
     library(DESeq2)
     library(optparse)
     library(igraph)
@@ -754,6 +841,7 @@ main <- function() {
     # Create directory
     dir.create("charts", showWarnings = TRUE, recursive = FALSE, mode = "0777")
     dir.create("module_profiles", showWarnings = TRUE, recursive = FALSE, mode = "0777")
+    dir.create("boxplots", showWarnings = TRUE, recursive = FALSE, mode = "0777")
   }
 
   # Reading the raw data (rows are the sample and columns the genes)
@@ -888,6 +976,8 @@ main <- function() {
 
   exp_plot_time_end <- Sys.time()
 
+  cat("Generating box plots ...")
+  plot_boxplots(pheno_dt, colors, eigengenes_matrix_m)
 
   # Identify hub gene for each module
   cat("Identifying hub gene for each module ... \n")
