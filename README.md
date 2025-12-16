@@ -235,9 +235,4 @@ For more details on auto_WGCNA, please refer to this paper.
 
 ## Contacts
 
-Prof.ssa Castrignano' Tiziana, tiziana.castrignano@unitus.it
-
-
-## Credits
-
-
+Prof. Tiziana Castrignanò, tiziana.castrignano@unitus.it
