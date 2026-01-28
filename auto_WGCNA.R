@@ -420,9 +420,6 @@ plot_modpheno_heatmap <- function(
   pheno_dt,
   eigengenes_matrix
 ) {
-  print(length(names(pheno_dt)))
-  print(length(names(eigengenes_matrix)))
-
   # Save plot as TIFF image
   tiff(
     "charts/module_pheno_heatmap.tiff",
@@ -444,7 +441,8 @@ plot_modpheno_heatmap <- function(
     cex.lab = 0.3,
     cex.text = 0.2,
     zlim = c(-1, 1),
-    main = "Module-Phenodata Correlations"
+    main = "Module-Phenodata Correlations",
+    cex.main = 0.5
   )
   dev.off()
 
@@ -468,7 +466,8 @@ plot_modpheno_heatmap <- function(
     cex.lab = 0.3,
     cex.text = 0.2,
     zlim = c(-1, 1),
-    main = "Module-Phenodata Correlations"
+    main = "Module-Phenodata Correlations",
+    cex.main = 0.5
   )
   dev.off()
 }
@@ -494,8 +493,8 @@ plot_heatmap <- function(eigengenes_matrix_m, eigengenes_matrix) {
   ggsave(
     "charts/heatmap.tiff",
     plot = heatmap,
-    width = 0.5 * length(unique(eigengenes_matrix_m$sample)),
-    height = 0.5 * length(unique(eigengenes_matrix_m$name)),
+    width = min(0.5 * length(unique(eigengenes_matrix_m$sample)), 50),
+    height = min(0.5 * length(unique(eigengenes_matrix_m$name)), 50),
     dpi = 600,
     limitsize = FALSE,
     device = "tiff",
@@ -506,8 +505,8 @@ plot_heatmap <- function(eigengenes_matrix_m, eigengenes_matrix) {
   ggsave(
     "charts/heatmap.png",
     plot = heatmap,
-    width = 0.5 * length(unique(eigengenes_matrix_m$sample)),
-    height = 0.5 * length(unique(eigengenes_matrix_m$name)),
+    width = min(0.5 * length(unique(eigengenes_matrix_m$sample)), 50),
+    height = min(0.5 * length(unique(eigengenes_matrix_m$name)), 50),
     dpi = 150,
     limitsize = FALSE
   )
