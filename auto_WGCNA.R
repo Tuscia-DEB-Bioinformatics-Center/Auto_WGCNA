@@ -336,6 +336,40 @@ save_colors_list <- function(network) {
   return(gene_modules)
 }
 
+plot_bar <- function(gene_modules) {
+  module_count_df <- as.data.frame(table(gene_modules$color))
+  colnames(module_count_df) <- c("module", "n_genes")
+
+  print(module_count_df)
+
+  # barplot
+  bar_plot <- ggplot(
+    module_count_df,
+    aes(x = module, y = n_genes, fill = module)
+  ) +
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = setNames(gene_modules$color, gene_modules$color)) +
+  labs(
+    title = "Number of genes per module",
+    x = "Modules",
+    y = "Number of genes"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  # Export heatmap to TIFF file
+  ggsave(
+    "charts/barplot_genemodules.tiff",
+    plot = bar_plot,
+    width = min(0.5 * length(gene_modules$color), 10),
+    height = 10,
+    dpi = 600,
+    limitsize = FALSE,
+    device = "tiff",
+    compression = "zip"
+  )
+}
+
 identify_eigengenes <- function(vst_for_wgcna, colors) {
   # Identify eigengenes gene of each module
   eigengenes_matrix <- moduleEigengenes(vst_for_wgcna, colors)$eigengenes
@@ -956,6 +990,9 @@ main <- function() {
 
   # Save gene modules
   gene_modules <- save_colors_list(network)
+
+  # Plot barplot
+  plot_bar(gene_modules)
 
   # Identify and save eigengenes for each module
   eigen_results <- identify_eigengenes(vst_for_wgcna, colors)
