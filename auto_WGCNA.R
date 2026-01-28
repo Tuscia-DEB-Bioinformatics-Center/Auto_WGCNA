@@ -696,88 +696,93 @@ plot_top_gene_network <- function(
   network,
   colors
 ) {
-  # Identify top genes and order in descend order
-  sel_genes <- names(
-    sort(
-      apply(vst_for_wgcna, 2, var),
-      decreasing = TRUE
-    )[1:1000]
-  )
+top_genes_numbers <- c(1000, 100, 50)
 
-  # Calculate adjacency matrix
-  adjacency_matrix <- adjacency(
-    vst_for_wgcna[, sel_genes],
-    power = picked_power,
-    type = "signed"
-  )
+  for (number in top_genes_numbers) {
+    # Identify top genes and order in descend order
+    sel_genes <- names(
+      sort(
+        apply(vst_for_wgcna, 2, var),
+        decreasing = TRUE
+      )[1:number]
+    )
 
-  # Calculate Topological Overlap Matrix
-  tom <- TOMsimilarity(adjacency_matrix)
-  colnames(tom) <- sel_genes
-  rownames(tom) <- sel_genes
+    # Calculate adjacency matrix
+    adjacency_matrix <- adjacency(
+      vst_for_wgcna[, sel_genes],
+      power = picked_power,
+      type = "signed"
+    )
 
-  # Keep top 20% of connections
-  tom_trimmed <- quantile(tom[upper.tri(tom)], 0.80)
-  cat("TOM threshold (80%):", tom_trimmed, "\n")
+    # Calculate Topological Overlap Matrix
+    tom <- TOMsimilarity(adjacency_matrix)
+    colnames(tom) <- sel_genes
+    rownames(tom) <- sel_genes
 
-  adjacency_threshold <- tom
-  adjacency_threshold[adjacency_threshold < tom_trimmed] <- 0
+    # Keep top 20% of connections
+    tom_trimmed <- quantile(tom[upper.tri(tom)], 0.80)
+    cat("TOM threshold (80%):", tom_trimmed, "\n")
 
-  # Create graph object
-  network_graph <- graph_from_adjacency_matrix(
-    adjacency_threshold,
-    mode = "undirected",
-    weighted = TRUE,
-    diag = FALSE
-  )
+    adjacency_threshold <- tom
+    adjacency_threshold[adjacency_threshold < tom_trimmed] <- 0
 
-  # Remove unconnected nodes
-  network_graph <- delete_vertices(
-    network_graph,
-    degree(network_graph) == 0
-  )
+    # Create graph object
+    network_graph <- graph_from_adjacency_matrix(
+      adjacency_threshold,
+      mode = "undirected",
+      weighted = TRUE,
+      diag = FALSE
+    )
 
-  # Get module colors for these genes
-  node_colors <- colors[match(sel_genes, names(network$colors))]
+    # Remove unconnected nodes
+    network_graph <- delete_vertices(
+      network_graph,
+      degree(network_graph) == 0
+    )
 
-  # Calculate node sizes based on connectivity
-  node_sizes <- log10(degree(network_graph) + 1) * 3 + 3
+    # Get module colors for these genes
+    node_colors <- colors[match(sel_genes, names(network$colors))]
 
-  # Save plot as TIFF image
-  tiff(
-    "charts/coexpression_network.tiff",
-    width = 10,
-    height = 7,
-    units = "in",
-    res = 600,
-    compression = "zip"
-  )
-  par(mar = c(0, 0, 3, 0))
-  set.seed(123)
-  plot(
-    network_graph,
-    vertex.size = node_sizes,
-    vertex.label = NA,
-    vertex.color = node_colors,
-    vertex.frame.color = NA,
-    edge.width = 0.2,
-    edge.color = "gray8",
-    layout = layout_with_fr(network_graph),
-    main = "Network\nTop 1000 genes"
-  )
+    # Calculate node sizes based on connectivity
+    node_sizes <- log10(degree(network_graph) + 1) * 3 + 3
 
-  unique_colors <- unique(node_colors[node_colors != "grey"])
+    # Save plot as TIFF image
+    tiff(
+      paste("charts/coexpression_network_", number, "_genes", ".tiff", sep = ""),
+      width = 10,
+      height = 7,
+      units = "in",
+      res = 600,
+      compression = "zip"
+    )
+    par(mar = c(0, 0, 3, 0))
+    set.seed(123)
+    plot(
+      network_graph,
+      vertex.size = node_sizes,
+      vertex.label = NA,
+      vertex.color = node_colors,
+      vertex.frame.color = NA,
+      edge.width = 0.2,
+      edge.color = "gray8",
+      layout = layout_with_fr(network_graph),
+      main = paste("Network\n", "Top ", number, " genes", sep = "")
+    )
 
-  legend(
-    "topright",
-    legend = unique_colors,
-    col = unique_colors,
-    pch = 19,
-    cex = 1,
-    title = "Modules",
-    bty = "n"
-  )
-  dev.off()
+    unique_colors <- unique(node_colors[node_colors != "grey"])
+
+    legend(
+      "topright",
+      legend = unique_colors,
+      col = unique_colors,
+      pch = 19,
+      cex = 0.6,
+      ncol = 2,
+      title = "Modules",
+      bty = "n"
+    )
+    dev.off()
+  }
 }
 
 write_exec_time <- function(
