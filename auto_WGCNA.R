@@ -379,6 +379,15 @@ calculate_modpheno_correlation <- function(pheno_dt, eigengenes_matrix) {
 
   rownames(pheno_num_dt) <- rownames(pheno_dt)
 
+  # Print eigengenes matrix to file
+  write.table(
+    eigengenes_matrix[, !(names(eigengenes_matrix) %in% c("sample"))],
+    file = "eigengenes_matrix.tsv",
+    sep = "\t",
+    row.names = FALSE,
+    quote = FALSE
+  )
+
   # Create module x phenotype matrix
   module_phenodata_cor <- cor(
     eigengenes_matrix[, !(names(eigengenes_matrix) %in% c("sample"))],
@@ -957,16 +966,26 @@ main <- function() {
       eigengenes_matrix
     )
 
-    # Plot and save module x phenotype correlation heatmap chart
-    plot_modpheno_heatmap(
-      module_phenodata_cor,
-      pheno_dt,
-      eigengenes_matrix
-    )
+    if (length(unique(network$colors)) > 50) {
+      cat("The gene module - phenodata correlation heatmap was not created because it was too large.\n")
+      cat("It is still possible to consult the correlation present in the module_phenodata_cor.tsv file.\n")
+    } else {
+      # Plot and save module x phenotype correlation heatmap chart
+      plot_modpheno_heatmap(
+        module_phenodata_cor,
+        pheno_dt,
+        eigengenes_matrix
+      )
+    }
   }
 
-  # Generate and save heatmap chart
-  plot_heatmap(eigengenes_matrix_m, eigengenes_matrix)
+  if (length(unique(network$colors)) > 50) {
+    cat("The gene module - sample heatmap was not created because it was too large.\n")
+    cat("It is still possible to consult relevant informations present in the eigengenes_matrix_m.tsv file.\n")
+  } else {
+    # Generate and save heatmap chart
+    plot_heatmap(eigengenes_matrix_m, eigengenes_matrix)
+  }
 
   # Generate and save gene modules expression profiles
   cat("Generating gene expression profiles charts ... \n")
