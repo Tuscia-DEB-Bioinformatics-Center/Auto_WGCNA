@@ -456,8 +456,8 @@ plot_modpheno_heatmap <- function(
   # Save plot as TIFF image
   tiff(
     "charts/module_pheno_heatmap.tiff",
-    width = 2 * length(names(pheno_dt)),
-    height = 0.2 * length(names(eigengenes_matrix)),
+    width = min(2 * length(names(pheno_dt)), 50),
+    height = min(0.2 * length(names(eigengenes_matrix)), 50),
     units = "in",
     res = 600,
     compression = "zip"
@@ -482,8 +482,8 @@ plot_modpheno_heatmap <- function(
   # Save plot as PNG image
   png(
     "charts/module_pheno_heatmap.png",
-    width = 2 * length(names(pheno_dt)),
-    height = 0.2 * length(names(eigengenes_matrix)),
+    width = min(2 * length(names(pheno_dt)), 50),
+    height = min(0.2 * length(names(eigengenes_matrix)), 50),
     units = "in",
     res = 150
   )
@@ -902,7 +902,7 @@ main <- function() {
     row.names(pheno_dt) <- pheno_dt[, 1]
 
     # Remove first column of phenodata dataframe
-    pheno_dt <- pheno_dt[, -1]
+    pheno_dt <- pheno_dt[, -1, drop = FALSE]
   }
 
   start_time <- Sys.time()
