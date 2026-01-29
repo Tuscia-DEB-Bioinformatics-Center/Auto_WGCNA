@@ -340,14 +340,13 @@ plot_bar <- function(gene_modules) {
   module_count_df <- as.data.frame(table(gene_modules$color))
   colnames(module_count_df) <- c("module", "n_genes")
 
-  print(module_count_df)
-
   # barplot
   bar_plot <- ggplot(
     module_count_df,
-    aes(x = module, y = n_genes, fill = module)
+    aes(x =  reorder(module, -n_genes), y = n_genes, fill = module)
   ) +
   geom_bar(stat = "identity") +
+  geom_text(aes(label = n_genes), vjust = -0.3, size = 3) +
   scale_fill_manual(values = setNames(gene_modules$color, gene_modules$color)) +
   labs(
     title = "Number of genes per module",
