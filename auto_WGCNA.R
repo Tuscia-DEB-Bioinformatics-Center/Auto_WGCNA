@@ -346,8 +346,13 @@ plot_bar <- function(gene_modules) {
     aes(x =  reorder(module, -n_genes), y = n_genes, fill = module)
   ) +
   geom_bar(stat = "identity") +
-  geom_text(aes(label = n_genes), vjust = -0.3, size = 3) +
+  geom_text(
+    aes(label = n_genes),
+    vjust = -0.3,
+    size = min(2, (150 / nrow(module_count_df)))
+  ) +
   scale_fill_manual(values = setNames(gene_modules$color, gene_modules$color)) +
+  guides(fill = "none") +
   labs(
     title = "Number of genes per module",
     x = "Modules",
