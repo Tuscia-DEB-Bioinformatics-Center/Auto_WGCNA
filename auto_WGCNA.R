@@ -343,30 +343,34 @@ plot_bar <- function(gene_modules) {
   # barplot
   bar_plot <- ggplot(
     module_count_df,
-    aes(x =  reorder(module, -n_genes), y = n_genes, fill = module)
+    aes(x = n_genes, y = reorder(module, n_genes), fill = module)
   ) +
-  geom_bar(stat = "identity") +
+  scale_x_continuous(expand = expansion(mult = c(0, 0.1))) +
+  geom_col(stat = "identity") +
   geom_text(
     aes(label = n_genes),
-    vjust = -0.3,
-    size = min(2, (150 / nrow(module_count_df)))
+    hjust = -0.5,
+    size = min(3, (300 / nrow(module_count_df)))
   ) +
   scale_fill_manual(values = setNames(gene_modules$color, gene_modules$color)) +
   guides(fill = "none") +
   labs(
     title = "Number of genes per module",
-    x = "Modules",
-    y = "Number of genes"
+    x = "Number of genes",
+    y = "Modules"
   ) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(
+    panel.grid.major.y = element_blank(),
+    panel.grid.minor.y = element_blank()
+  )
 
   # Export heatmap to TIFF file
   ggsave(
     "charts/barplot_genemodules.tiff",
     plot = bar_plot,
-    width = min(0.5 * length(gene_modules$color), 10),
-    height = 10,
+    width = 15,
+    height = min(0.5 * length(gene_modules$color), 15),
     dpi = 600,
     limitsize = FALSE,
     device = "tiff",
