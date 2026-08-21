@@ -249,7 +249,7 @@ network_build <- function(vst_for_wgcna, picked_power) {
   cor <- WGCNA::cor         # Force it to use WGCNA cor function 
 
   network <- blockwiseModules(
-    vst_for_wgcna,                       # count matrix
+    vst_for_wgcna,                       # normalized and transformed expression matrix
     power = picked_power * 10,           # soft threshold
     networkType = "signed",              # network type: signed = more restrictive correlation, unsigned = less restrictive correlation         
     deepSplit = 2,                       # 0 - 4, 0 = (less modules with bigger size), 4 = (more modules with smaller size)
@@ -454,7 +454,12 @@ calculate_modpheno_correlation <- function(pheno_dt, eigengenes_matrix) {
     quote = FALSE
   )
 
-  return(module_phenodata_cor)
+  return(
+    list(
+      module_phenodata_cor = module_phenodata_cor,
+      module_pheno_pvalue = module_pheno_pvalue
+    )
+  )
 }
 
 plot_modpheno_heatmap <- function(
@@ -616,7 +621,8 @@ plot_expression_profiles <- function(vst_mat, gene_modules, workdir) {
 
   zip(
     "charts/module_profiles.zip",
-    files = "module_profiles/"
+    files = "module_profiles/",
+    flags = "-r9Xq"
   )
 
   unlink("module_profiles", recursive = TRUE)
@@ -702,7 +708,8 @@ plot_boxplots <- function(pheno_dt, colors, eigengenes_matrix_m) {
 
   zip(
     "charts/boxplots.zip",
-    files = "boxplots/"
+    files = "boxplots/",
+    flags = "-r9Xq"
   )
 
   unlink("boxplots", recursive = TRUE)
@@ -738,7 +745,7 @@ plot_top_gene_network <- function(
   network,
   colors
 ) {
-top_genes_numbers <- c(1000, 100, 50)
+  top_genes_numbers <- c(1000, 100, 50)
 
   for (number in top_genes_numbers) {
     # Identify top genes and order in descend order
@@ -1010,10 +1017,13 @@ main <- function() {
   # Calculate and plot module-phenodata correlations
   if (!is.na(opt$phenodata)) {
     # Calculate module phenotype correlation
-    module_phenodata_cor <- calculate_modpheno_correlation(
+    modpheno_res <- calculate_modpheno_correlation(
       pheno_dt,
       eigengenes_matrix
     )
+
+    module_phenodata_cor <- modpheno_res$module_phenodata_cor
+    module_pheno_pvalue <- modpheno_res$module_pheno_pvalue
 
     if (length(unique(network$colors)) > 50) {
       cat("The gene module - phenodata correlation heatmap was not created because it was too large.\n")
@@ -1044,13 +1054,13 @@ main <- function() {
 
   exp_plot_time_end <- Sys.time()
 
-  cat("Generating box plots ...")
+  cat("Generating box plots ...\n")
   plot_boxplots(pheno_dt, colors, eigengenes_matrix_m)
 
   # Identify hub gene for each module
   cat("Identifying hub gene for each module ... \n")
   identify_hub_genes(vst_for_wgcna, colors, picked_power)
-  cat("Hub genes correctly identified.")
+  cat("Hub genes correctly identified.\n")
 
   # Plot top gene network graph
   plot_top_gene_network(vst_for_wgcna, picked_power, network, colors)
