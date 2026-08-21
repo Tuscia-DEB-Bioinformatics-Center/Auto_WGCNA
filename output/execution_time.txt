@@ -1,8 +1,8 @@
-Total execution time: 254.8848 seconds 
- Deseq2 execution time: 3.666067 seconds 
- Threshold calculation time: 37.81204 seconds 
- Net build execution time: 108.7711 seconds 
- Expression profiles plot time: 83.96038 seconds 
+Total execution time: 338.4242 seconds 
+ Deseq2 execution time: 3.573593 seconds 
+ Threshold calculation time: 30.942 seconds 
+ Net build execution time: 101.6315 seconds 
+ Expression profiles plot time: 82.4734 seconds 
  
  ------------------------------------------------- 
 
