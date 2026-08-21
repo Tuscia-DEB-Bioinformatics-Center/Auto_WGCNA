@@ -126,7 +126,7 @@ Rscript path/to/source_code/auto_WGCNA.R \
 Execute the following command:
 
 ```{bash}
-Rscript path/to/source_code/WGCNA_script.R \
+Rscript path/to/source_code/auto_WGCNA.R \
     -d absolute/path/to/working_directory \
     -c absolute/path/to/gene_count_matrix \
     [-p absolute/path/to/phenodata_matrix] \
@@ -136,7 +136,7 @@ Rscript path/to/source_code/WGCNA_script.R \
 or
 
 ```{bash}
-Rscript path/to/source_code/WGCNA_script.R \
+Rscript path/to/source_code/auto_WGCNA.R \
     -d absolute/path/to/working_directory \
     -c absolute/path/to/gene_count_matrix \
     -m automatic
@@ -163,7 +163,7 @@ This section provides two examples of execution (one for each execution mode).
 Go to the folder where auto_WGCNA is located and run the following command:
 
 ```{bash}
-Rscript auto_WGCNA.R \
+Rscript path/to/source_code/auto_WGCNA.R \
     -d absolute/path/to/auto_WGCNA/output \
     -c absolute/path/to/auto_WGCNA/input/... \
     -p absolute/path/to/auto_WGCNA/input/... \
@@ -177,7 +177,7 @@ auto_WGCNA will execute the first part of the script and produce, among others, 
 Once you have examined the graph and chosen a suitable value for the soft threshold, run the following command, entering this value as the `-y` argument (in this case, `0.8` was chosen):
 
 ```{bash}
-Rscript auto_WGCNA.R \
+Rscript path/to/source_code/auto_WGCNA.R \
     -d absolute/path/to/auto_WGCNA/output \
     -c absolute/path/to/auto_WGCNA/input/... \
     -p absolute/path/to/auto_WGCNA/input/... \
@@ -193,7 +193,7 @@ and the script will be executed until the end.
 Go to the folder where auto_WGCNA is located and run the following command:
 
 ```{bash}
-Rscript auto_WGCNA.R \
+Rscript path/to/source_code/auto_WGCNA.R \
     -d absolute/path/to/auto_WGCNA/output \
     -c absolute/path/to/auto_WGCNA/input/... \
     -p absolute/path/to/auto_WGCNA/input/... \
