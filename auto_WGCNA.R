@@ -465,8 +465,23 @@ calculate_modpheno_correlation <- function(pheno_dt, eigengenes_matrix) {
 plot_modpheno_heatmap <- function(
   module_phenodata_cor,
   pheno_dt,
-  eigengenes_matrix
+  eigengenes_matrix,
+  module_pheno_pvalue
 ) {
+  # Create matrix with text value for heatmap cells
+  text_matrix <- paste(
+    sprintf("%.2f", module_phenodata_cor),
+    ifelse(
+      module_pheno_pvalue < 0.001,
+      sprintf(
+        "(p = %s)",
+        formatC(module_pheno_pvalue, format = "e", digits = 2)
+      ),
+      sprintf("(p = %.2f)", module_pheno_pvalue)
+    ),
+    sep = "\n"
+  )
+
   # Save plot as TIFF image
   tiff(
     "charts/module_pheno_heatmap.tiff",
@@ -483,7 +498,7 @@ plot_modpheno_heatmap <- function(
     ySymbols = names(eigengenes_matrix[, !(names(eigengenes_matrix) %in% c("sample"))]),
     colorLabels = FALSE,
     colors = blueWhiteRed(50),
-    textMatrix = signif(module_phenodata_cor, 2),
+    textMatrix = text_matrix,
     setStdMargins = FALSE,
     cex.lab = 0.3,
     cex.text = 0.2,
@@ -508,7 +523,7 @@ plot_modpheno_heatmap <- function(
     ySymbols = names(eigengenes_matrix[, !(names(eigengenes_matrix) %in% c("sample"))]),
     colorLabels = FALSE,
     colors = blueWhiteRed(50),
-    textMatrix = signif(module_phenodata_cor, 2),
+    textMatrix = text_matrix,
     setStdMargins = FALSE,
     cex.lab = 0.3,
     cex.text = 0.2,
@@ -524,8 +539,21 @@ plot_heatmap <- function(eigengenes_matrix_m, eigengenes_matrix) {
     eigengenes_matrix_m,
     aes(x = sample, y = name, fill = value)
   ) +
-  geom_tile() +
+  geom_tile(
+    color = scales::alpha("grey50", 0.3),
+    linewidth = 0.15
+  ) +
   theme_bw() +
+  geom_text(
+    aes(
+      label = ifelse(
+        value < 0.001,
+        sprintf("%s", formatC(value, format = "e", digits = 2)),
+        sprintf("%.2f", value)
+      )
+    ),
+    size = 2
+  ) +
   scale_fill_gradient2(
     low = "blue",
     high = "red",
@@ -1033,7 +1061,8 @@ main <- function() {
       plot_modpheno_heatmap(
         module_phenodata_cor,
         pheno_dt,
-        eigengenes_matrix
+        eigengenes_matrix,
+        module_pheno_pvalue
       )
     }
   }
