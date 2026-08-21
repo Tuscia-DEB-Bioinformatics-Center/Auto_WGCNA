@@ -222,13 +222,15 @@ Module-Phenodata chart:
 
 Module expression profiles charts:
 
-![module profile](output/charts/profile_blue.png)
-
+![module profile](output/charts/module_profiles/profile_blue.png)
 
 It is possible to find one of these for each module in the folder `module_profiles`
 
-Top gene network chart:
+Box plot charts:
 
+![box plot](output/charts/boxplots/profile_blue_Midday____Midnight.png)
+
+and top gene network charts.
 
 Along with saving tables and files useful for in-depth analysis.
 For more details on auto_WGCNA, please refer to this paper.
