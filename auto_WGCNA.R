@@ -267,13 +267,13 @@ network_build <- function(vst_for_wgcna, picked_power) {
   return(network)
 }
 
-plot_dendogram <- function(network) {
+plot_dendrogram <- function(network) {
   # Convert labels to colors for plotting
   colors <- labels2colors(network$colors)
 
   # Save plot as TIFF image
   tiff(
-    "charts/dendogram.tiff",
+    "charts/dendrogram.tiff",
     width = 5760,
     height = 3240,
     units = "px",
@@ -282,7 +282,7 @@ plot_dendogram <- function(network) {
   )
   # Plot the dendrogram and the module colors underneath
   plotDendroAndColors(
-    network$dendrograms[[1]],             # dendogram object to be visualized
+    network$dendrograms[[1]],             # dendrogram object to be visualized
     colors[network$blockGenes[[1]]],      # colors vector
     "Module colors",
     dendroLabels = FALSE,                 # NULL = display branch labels, FALSE = no display branch labels
@@ -294,7 +294,7 @@ plot_dendogram <- function(network) {
 
   # Save plot as PNG image
   png(
-    "charts/dendogram.png",
+    "charts/dendrogram.png",
     width = 960,
     height = 540,
     units = "px",
@@ -302,7 +302,7 @@ plot_dendogram <- function(network) {
   )
   # Plot the dendrogram and the module colors underneath
   plotDendroAndColors(
-    network$dendrograms[[1]],             # dendogram object to be visualized
+    network$dendrograms[[1]],             # dendrogram object to be visualized
     colors[network$blockGenes[[1]]],      # colors vector
     "Module colors",
     dendroLabels = FALSE,                 # NULL = display branch labels, FALSE = no display branch labels
