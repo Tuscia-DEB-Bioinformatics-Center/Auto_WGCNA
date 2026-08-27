@@ -48,7 +48,7 @@ Below are all the functions in the script along with their purpose:
       
 - `network_build()`: This function uses WGCNA to construct the gene co-expression network and identifies modules of related genes.
   
-- `plot_dendogram()`: function that prints the chart (dendrogram) highlighting the correlations between genes performed by the `network_build()` function.
+- `plot_dendrogram()`: function that prints the chart (dendrogram) highlighting the correlations between genes performed by the `network_build()` function.
 
 - `save_colors_list()`: function that saves a table in which each row contains the name of a gene and the corresponding module to which it belongs.
 
@@ -210,7 +210,7 @@ Soft threshold chart:
 
 Dendogram chart:
 
-![dendogram](output/charts/dendogram.png)
+![dendrogram](output/charts/dendrogram.png)
 
 Heatmap chart:
 
