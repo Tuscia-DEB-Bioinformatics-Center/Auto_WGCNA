@@ -1027,9 +1027,9 @@ main <- function() {
   cat("network build finished \n")
 
   # Cluster plot
-  cat("plot dendogram started \n")
-  colors <- plot_dendogram(network)
-  cat("plot dendogram finished \n")
+  cat("plot dendrogram started \n")
+  colors <- plot_dendrogram(network = network)
+  cat("plot dendrogram finished \n")
 
   # Save gene modules
   gene_modules <- save_colors_list(network)
