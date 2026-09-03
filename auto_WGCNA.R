@@ -1083,8 +1083,10 @@ main <- function() {
 
   exp_plot_time_end <- Sys.time()
 
-  cat("Generating box plots ...\n")
-  plot_boxplots(pheno_dt, colors, eigengenes_matrix_m)
+  if (!is.na(opt$phenodata)) {
+    cat("Generating box plots ...\n")
+    plot_boxplots(pheno_dt, colors, eigengenes_matrix_m)
+  }
 
   # Identify hub gene for each module
   cat("Identifying hub gene for each module ... \n")
