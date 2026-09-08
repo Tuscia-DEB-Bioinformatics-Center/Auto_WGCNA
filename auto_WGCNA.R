@@ -414,9 +414,11 @@ identify_eigengenes <- function(vst_for_wgcna, colors) {
 }
 
 calculate_modpheno_correlation <- function(pheno_dt, eigengenes_matrix) {
-  # Convert non numeric data in numeric
+  # Convert non numeric data in numeric (only if data is non numeric)
   pheno_num_dt <- data.frame(
-    lapply(pheno_dt, function(x) as.numeric(as.factor(x)))
+    lapply(pheno_dt, function(x) {
+      if (is.numeric(x)) x else as.numeric(as.factor(x))
+    })
   )
 
   rownames(pheno_num_dt) <- rownames(pheno_dt)
