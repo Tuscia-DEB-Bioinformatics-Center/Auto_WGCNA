@@ -1,34 +1,34 @@
 parse_arguments <- function() {
   option_list <- list(
-    make_option(
+    optparse::make_option(
       c("-d", "--workdir"),
       type = "character",
       help = "Working directory absolute path"
     ),
-    make_option(
+    optparse::make_option(
       c("-c", "--countmatrix"),
       type = "character",
       help = "Count matrix file absolute path"
     ),
-    make_option(
+    optparse::make_option(
       c("-p", "--phenodata"),
       type = "character",
       help = "Phenodata CSV file",
       default = NA
     ),
-    make_option(
+    optparse::make_option(
       c("-t", "--threads"),
       type = "integer",
       help = "Threads number",
       default = NA
     ),
-    make_option(
+    optparse::make_option(
       c("-m", "--mode"),
       type = "character",
       help = "Script execution mode [automatic (default) / manual]",
       default = "automatic"
     ),
-    make_option(
+    optparse::make_option(
       c("-y", "--threshold"),
       type = "double",
       help = "Threshold value",
@@ -36,8 +36,8 @@ parse_arguments <- function() {
     )
   )
 
-  opt_parser <- OptionParser(option_list = option_list)
-  opt <- parse_args(opt_parser)
+  opt_parser <- optparse::OptionParser(option_list = option_list)
+  opt <- optparse::parse_args(opt_parser)
 
   return(opt)
 }
@@ -380,18 +380,18 @@ plot_bar <- function(gene_modules) {
 
 identify_eigengenes <- function(vst_for_wgcna, colors) {
   # Identify eigengenes gene of each module
-  eigengenes_matrix <- moduleEigengenes(vst_for_wgcna, colors)$eigengenes
+  eigengenes_matrix <- WGCNA::moduleEigengenes(vst_for_wgcna, colors)$eigengenes
 
   # Order modules
-  eigengenes_matrix <- orderMEs(eigengenes_matrix)
+  eigengenes_matrix <- WGCNA::orderMEs(eigengenes_matrix)
   module_order <- gsub("ME", "", names(eigengenes_matrix))
 
   # ...
   eigengenes_matrix$sample <- row.names(eigengenes_matrix)
 
   # Convert dataframe in sample, name, value
-  eigengenes_matrix_m <- mutate(
-    pivot_longer(eigengenes_matrix, -sample),
+  eigengenes_matrix_m <- dplyr::mutate(
+    tidyr::pivot_longer(eigengenes_matrix, -sample),
     name = gsub("ME", "", name),
     name = factor(name, levels = module_order)
   )
@@ -439,12 +439,15 @@ calculate_modpheno_correlation <- function(pheno_dt, eigengenes_matrix) {
     use = "p"
   )
 
-  module_pheno_pvalue <- corPvalueStudent(
+  module_pheno_pvalue <- WGCNA::corPvalueStudent(
     module_phenodata_cor,
     nSamples = nrow(eigengenes_matrix)
   )
 
-  mpc_save <- cbind(module = rownames(module_phenodata_cor), module_phenodata_cor)
+  mpc_save <- cbind(
+    module = rownames(module_phenodata_cor),
+    module_phenodata_cor
+  )
   rownames(mpc_save) <- NULL
 
   # Save dataframe to TSV file
