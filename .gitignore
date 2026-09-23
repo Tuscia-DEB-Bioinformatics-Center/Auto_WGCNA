@@ -2,6 +2,9 @@
 *.tiff
 *.zip
 
+# Keep the local test suite out of version control
+/tests/
+
 # History files
 .Rhistory
 .Rapp.history

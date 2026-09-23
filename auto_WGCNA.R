@@ -43,50 +43,138 @@ parse_arguments <- function() {
 }
 
 count_normalization <- function(dt_counts) {
+  # Data validation
+  stopifnot(
+    "Input must be a data frame." =
+      is.data.frame(dt_counts),
+    "Input data frame must contain a 'gene_id' column." =
+      "gene_id" %in% colnames(dt_counts),
+    "Input must contain at least one sample column besides 'gene_id'." =
+      ncol(dt_counts) >= 2,
+    "Input must contain at least 2 genes." =
+      nrow(dt_counts) >= 2,
+    "Count data contains NA values." =
+      !any(is.na(dt_counts[, -1, drop = FALSE])),
+    "Count columns must be numeric." =
+      all(vapply(dt_counts[, -1, drop = FALSE], is.numeric, logical(1))),
+    "Count data must contain integer values." =
+      all(vapply(dt_counts[, -1, drop = FALSE], function(x) all(x == round(x)), logical(1))),
+    "Count data cannot contain negative values." =
+      !any(dt_counts[, -1, drop = FALSE] < 0)
+  )
+  n_genes <- nrow(dt_counts)
+  n_samples <- ncol(dt_counts) - 1L
+
+  # Stop execution if dataset contains only one sample
+  if (n_samples < 2)
+    stop("At least two samples are required for DESeq2 normalization.")
+
   # Create DESeq2 object
   deseq_input <- as.matrix(dt_counts[, -1])
   row.names(deseq_input) <- dt_counts$gene_id
 
   col_data <- data.frame(row.names = colnames(deseq_input))
 
-  dds <- DESeqDataSetFromMatrix(
-    countData = deseq_input,
-    colData = col_data,
-    design = ~ 1
+  # ...
+  dds <- tryCatch(
+    DESeq2::DESeqDataSetFromMatrix(
+      countData = deseq_input,
+      colData = col_data,
+      design = ~ 1
+    ),
+    error = function(e) {
+      stop("Failed to create DESeq dataset: ", conditionMessage(e))
+    }
   )
 
   # Calculate normalization factors and apply VST
-  dds <- estimateSizeFactors(dds)
-  vsd <- vst(dds, blind = TRUE)      # blind true because no testing conditions
+  dds <- tryCatch(
+    DESeq2::estimateSizeFactors(dds),
+    error = function(e) {
+      stop("Failed to estimate size factors: ", conditionMessage(e))
+    }
+  )
+
+  # Apply appropriate transformation based on dataset size
+  tryCatch(
+    {
+      if (n_genes > 1000)   vsd <- DESeq2::vst(dds, blind = TRUE)
+      else if (n_genes >= 30) {
+        vsd <- DESeq2::varianceStabilizingTransformation(dds, blind = TRUE)
+      } else {
+        warning("Very small dataset (< 30 genes). Using rlog transformation.")
+        vsd <- DESeq2::rlog(dds, blind = TRUE)
+      }
+    },
+    error = function(e) {
+      stop("Transformation failed: ", conditionMessage(e))
+    }
+  )
+
   vst_mat <- assay(vsd)
 
   # Traspose table for WGCNA: rows = samples, columns = genes
   vst_for_wgcna <- as.data.frame(t(vst_mat))
 
   # Export csv table
-  write.table(
-    vst_for_wgcna,
-    "WGCNA_input_VST.csv",
-    sep = ",",
-    row.names = TRUE,
-    quote = FALSE
+  tryCatch(
+    {
+      write.table(
+        vst_for_wgcna,
+        "WGCNA_input_VST.csv",
+        sep = ",",
+        row.names = TRUE,
+        quote = FALSE
+      )
+
+      zip("WGCNA_input_VST.zip", files = "WGCNA_input_VST.csv")
+      file.remove("WGCNA_input_VST.csv")
+    },
+    error = function(e) {
+      stop("File export failed: ", conditionMessage(e))
+    }
   )
 
-  zip("WGCNA_input_VST.zip", files = "WGCNA_input_VST.csv")
-
-  file.remove("WGCNA_input_VST.csv")
-
-  return(list(vst_for_wgcna = vst_for_wgcna, vst_mat = vst_mat))
+  list(vst_for_wgcna = vst_for_wgcna, vst_mat = vst_mat)
 }
 
 threshold_calculation_manual <- function(vst_for_wgcna, max_power) {
-  # Choose a set of soft-thresholding powers
-  powers <- c(1, seq(2, max_power, by = 2))
+  if (
+    !is.numeric(max_power) || length(max_power) != 1L ||
+    is.na(max_power) || !is.finite(max_power) ||
+    max_power < 1 || max_power > 30
+  ) {
+    stop("max_power must be a finite number between 1 and 30.", call. = FALSE)
+  }
+
+  # Data validation
+  stopifnot(
+    "vst_for_wgcna input must be a data frame." =
+      is.data.frame(vst_for_wgcna),
+    "vst_for_wgcna input must not have NAs" =
+      !any(is.na(vst_for_wgcna)),
+    "vst_for_wgcna input must have all numeric values" =
+      all(vapply(vst_for_wgcna, is.numeric, logical(1)))
+  )
+
+  fit_cutoff <- 0.8
+
+  # Declare a set of soft-thresholding powers to try
+  powers <- c(
+    1,
+    if (max_power >= 2) seq(2, max_power, by = 2) else numeric(0)
+  )
 
   # Call the network topology analysis function
-  sft <- pickSoftThreshold(vst_for_wgcna, powerVector = powers, verbose = 1)
+  sft <- WGCNA::pickSoftThreshold(
+    data = vst_for_wgcna,
+    RsquaredCut = fit_cutoff,
+    powerVector = powers,
+    networkType = "signed",
+    verbose = 1
+  )
 
-  return(list(sft = sft, powers = powers))
+  list(sft = sft, powers = powers)
 }
 
 threshold_calculation_automatic <- function(
@@ -95,58 +183,132 @@ threshold_calculation_automatic <- function(
   delta_min,
   min_length
 ) {
-  # Choose a set of soft-thresholding powers
-  powers <- c(1, seq(2, max_power, by = 2))
+  fit_cutoff <- 0.8
+  comparison_tolerance <- sqrt(.Machine$double.eps)
+  if (
+    !is.numeric(max_power) || length(max_power) != 1L ||
+    is.na(max_power) || !is.finite(max_power) ||
+    max_power < 1 || max_power > 30
+  ) {
+    stop("max_power must be a finite number between 1 and 30.", call. = FALSE)
+  }
+  if (
+    !is.numeric(delta_min) || length(delta_min) != 1L ||
+    is.na(delta_min) || !is.finite(delta_min) || delta_min < 0
+  ) {
+    stop("delta_min must be a finite non-negative number.", call. = FALSE)
+  }
+  if (
+    !is.numeric(min_length) || length(min_length) != 1L ||
+    is.na(min_length) || !is.finite(min_length) ||
+    min_length < 2 || min_length %% 1 != 0
+  ) {
+    stop("min_length must be an integer greater than or equal to 2.", call. = FALSE)
+  }
 
-  # Call the network topology analysis function
-  sft <- pickSoftThreshold(vst_for_wgcna, powerVector = powers, verbose = 1)
-  fit <- sft$fitIndices[, 2]
+  stopifnot(
+    "vst_for_wgcna input must be a data frame." = is.data.frame(vst_for_wgcna),
+    "vst_for_wgcna must have at least 2 columns." = ncol(vst_for_wgcna) >= 2,
+    "vst_for_wgcna input must not have NAs" = !any(is.na(vst_for_wgcna)),
+    "vst_for_wgcna input must have all numeric values" =
+      all(vapply(vst_for_wgcna, is.numeric, logical(1)))
+  )
 
-  # Calculate absolute incremental differencies
-  deltas <- abs(diff(fit))
+  powers <- c(1, if (max_power >= 2) seq(2, max_power, by = 2) else numeric(0))
+  sft <- WGCNA::pickSoftThreshold(
+    data = vst_for_wgcna,
+    RsquaredCut = fit_cutoff,
+    powerVector = powers,
+    networkType = "signed",
+    verbose = 1
+  )
 
-  cat("delta --> ", deltas, "\n")
+  tested_powers <- sft$fitIndices[, "Power"]
+  raw_fit <- sft$fitIndices[, "SFT.R.sq"]
+  slopes <- sft$fitIndices[, "slope"]
+  signed_fit <- -sign(slopes) * raw_fit
 
-  plateaus <- deltas < delta_min
+  if (length(signed_fit) >= 2L) {
+    left_indexes <- seq_len(length(signed_fit) - 1L)
+    right_indexes <- left_indexes + 1L
+    deltas <- abs(signed_fit[right_indexes] - signed_fit[left_indexes])
+    stable_transitions <-
+      !is.na(signed_fit[left_indexes]) & !is.na(signed_fit[right_indexes]) &
+      signed_fit[left_indexes] >= fit_cutoff & signed_fit[right_indexes] >= fit_cutoff &
+      deltas <= delta_min + comparison_tolerance
+  } else {
+    deltas <- numeric(0)
+    stable_transitions <- logical(0)
+  }
 
-  # Identify TRUE consecutives sequences
-  rle_plateau <- rle(plateaus)
+  cat("Signed fit deltas -->", deltas, "\n")
+  rle_plateau <- rle(stable_transitions)
   ends <- cumsum(rle_plateau$lengths)
-  starts <- ends - rle_plateau$lengths + 1
-
+  starts <- ends - rle_plateau$lengths + 1L
   results <- list()
+  minimum_transitions <- min_length - 1L
 
   for (i in seq_along(rle_plateau$values)) {
-    if (rle_plateau$values[i] && rle_plateau$lengths[i] >= min_length) {
-      indexes <- starts[i]:ends[i]
-
-      results[[length(results) + 1]] <- data.frame(
-        start_power = powers[indexes[1]],
-        end_power = powers[ends[i] + 1],
-        mean_value = mean(fit[indexes])
+    if (rle_plateau$values[i] && rle_plateau$lengths[i] >= minimum_transitions) {
+      plateau_indexes <- starts[i]:(ends[i] + 1L)
+      results[[length(results) + 1L]] <- data.frame(
+        start_power = tested_powers[plateau_indexes[1]],
+        end_power = tested_powers[plateau_indexes[length(plateau_indexes)]],
+        plateau_length = length(plateau_indexes),
+        mean_fit = mean(signed_fit[plateau_indexes]),
+        selected_power = tested_powers[plateau_indexes[1]]
       )
     }
   }
 
-  # Return max power if no plateau where found
-  if (length(results) == 0) {
-    cat("No plateau found, returning max power ...")
-    return(list(sft = sft, picked_power = max(fit), powers = powers))
+  if (length(results) > 0L) {
+    results_df <- do.call(rbind, results)
+    picked_power <- results_df$selected_power[1]
+    cat("Eligible plateaus found:\n")
+    print(results_df)
+    cat("Picked power:", picked_power, "\n")
+    return(list(sft = sft, picked_power = picked_power, powers = powers))
   }
 
-  cat("Plateau found: \n")
-  print(results)
+  cutoff_crossings <- which(!is.na(signed_fit) & signed_fit >= fit_cutoff)
+  if (length(cutoff_crossings) == 0L) {
+    observed_fit <- signed_fit[!is.na(signed_fit)]
+    max_observed_fit <- if (length(observed_fit) > 0L) {
+      format(max(observed_fit), digits = 4)
+    } else {
+      "NA"
+    }
+    stop(sprintf(
+      paste0("No tested power reached signed SFT.R.sq >= %.2f. ",
+        "WGCNA supports powers between 1 and 30 (maximum observed: %s)."),
+      fit_cutoff, max_observed_fit
+    ), call. = FALSE)
+  }
 
-  # Select longest plateau
-  results_df <- do.call(rbind, results)
-  lengths <- results_df$end_power - results_df$start_power
-  longest <- which.max(lengths)
-  picked_power <- results_df$mean_value[longest]
+  picked_power <- tested_powers[cutoff_crossings[1]]
+  cat("No eligible plateau found; using the first power with signed SFT.R.sq >=",
+    fit_cutoff, ":", picked_power, "\n")
+  list(sft = sft, picked_power = picked_power, powers = powers)
+}
 
-  cat("Picked power: \n")
-  print(results_df$mean_value[longest])
+save_sft_results <- function(sft) {
+  write.table(
+    sft$fitIndices,
+    file = "sft.tsv",
+    sep = "\t",
+    row.names = FALSE,
+    quote = FALSE
+  )
+}
 
-  return(list(sft = sft, picked_power = picked_power, powers = powers))
+save_threshold_selection <- function(mode, picked_power) {
+  write.table(
+    data.frame(mode = mode, picked_power = picked_power),
+    file = "threshold_selection.tsv",
+    sep = "\t",
+    row.names = FALSE,
+    quote = FALSE
+  )
 }
 
 plot_threshold_charts <- function(sft, picked_power, powers) {
@@ -245,12 +407,23 @@ plot_threshold_charts <- function(sft, picked_power, powers) {
 }
 
 network_build <- function(vst_for_wgcna, picked_power) {
+  if (
+    !is.numeric(picked_power) || length(picked_power) != 1L ||
+    is.na(picked_power) || !is.finite(picked_power) ||
+    picked_power < 1 || picked_power > 30
+  ) {
+    stop(
+      "picked_power must be a finite number between 1 and 30.",
+      call. = FALSE
+    )
+  }
+
   temp_cor <- cor
   cor <- WGCNA::cor         # Force it to use WGCNA cor function 
 
-  network <- blockwiseModules(
+  network <- WGCNA::blockwiseModules(
     vst_for_wgcna,                       # normalized and transformed expression matrix
-    power = picked_power * 10,           # soft threshold
+    power = picked_power,           # soft threshold
     networkType = "signed",              # network type: signed = more restrictive correlation, unsigned = less restrictive correlation         
     deepSplit = 2,                       # 0 - 4, 0 = (less modules with bigger size), 4 = (more modules with smaller size)
     pamRespectsDendro = FALSE,           # consent structure changes
@@ -264,7 +437,7 @@ network_build <- function(vst_for_wgcna, picked_power) {
     verbose = 1
   )
 
-  return(network)
+  network
 }
 
 plot_dendrogram <- function(network) {
