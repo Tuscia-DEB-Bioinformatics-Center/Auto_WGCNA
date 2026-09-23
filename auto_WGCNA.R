@@ -1,3 +1,20 @@
+# Time phases labels constants
+timing_phase_labels <- c(
+  initialization_input = "Initialization and input time",
+  deseq2_normalization = "Deseq2 execution time",
+  threshold_selection = "Threshold calculation time",
+  threshold_reporting = "Threshold reporting and plot time",
+  network_build = "Net build execution time",
+  module_summary = "Dendrogram, module export and barplot time",
+  eigengenes = "Eigengenes calculation and export time",
+  module_phenotype = "Module-phenotype correlation and heatmap time",
+  sample_heatmap = "Module-sample heatmap time",
+  expression_profiles = "Expression profiles plot time",
+  boxplots = "Boxplots time",
+  hub_genes = "Hub genes identification time",
+  top_gene_networks = "Top gene networks plot time"
+)
+
 parse_arguments <- function() {
   option_list <- list(
     optparse::make_option(
@@ -1042,38 +1059,90 @@ plot_top_gene_network <- function(
   }
 }
 
-write_exec_time <- function(
-  start_time,
-  end_time,
-  deseq_time_start,
-  deseq_time_end,
-  threshold_calc_time_start,
-  threshold_calc_time_end,
-  net_build_time_start,
-  net_build_time_end,
-  exp_plot_time_start,
-  exp_plot_time_end
-) {
+elapsed_seconds <- function(start_time, end_time) {
+  # Calculate elapsed seconds from start to end
+  as.numeric(difftime(end_time, start_time, units = "secs"))
+}
 
-  total_exec_time <- difftime(end_time, start_time, units = "secs")
-  deseq_time <- difftime(deseq_time_end, deseq_time_start, units = "secs")
-  threshold_time <- difftime(threshold_calc_time_end, threshold_calc_time_start, units = "secs")
-  net_build_time <- difftime(net_build_time_end, net_build_time_start, units = "secs")
-  exp_plot_time <- difftime(exp_plot_time_end, exp_plot_time_start, units = "secs")
+write_exec_time <- function(run_context, phase_times) {
+  # Stop execution if there are not all phase times
+  if (!all(names(timing_phase_labels) %in% names(phase_times))) {
+    stop("phase_times must include all timing phases.", call. = FALSE)
+  }
 
+  # Create times vector
+  phase_times <- as.numeric(phase_times[names(timing_phase_labels)])
+  names(phase_times) <- names(timing_phase_labels)
+
+  # Calculate total exectution time
+  total_exec_time <- elapsed_seconds(run_context$start_time, run_context$end_time)
+
+
+  format_duration <- function(value) {
+    if (is.na(value)) "skipped" else paste(value, "seconds")
+  }
+
+  # Create lines for text execution time file
+  detailed_lines <- paste(
+    unname(timing_phase_labels), ":",
+    vapply(phase_times, format_duration, character(1))
+  )
+
+  # Create picked power line
+  picked_power <- if (is.na(run_context$picked_power)) "not selected" else run_context$picked_power
+
+  # Create allocated threads line
+  requested_threads <- if (is.na(run_context$threads_requested)) "default" else run_context$threads_requested
+
+  # Write text execution times file
   cat(
+    "Run started at:", format(run_context$start_time, "%Y-%m-%dT%H:%M:%OS3%z"), "\n",
+    "Run ended at:", format(run_context$end_time, "%Y-%m-%dT%H:%M:%OS3%z"), "\n",
+    "Mode:", run_context$mode, "\n",
+    "Status:", run_context$status, "\n",
+    "Picked power:", picked_power, "\n",
+    "Requested threads:", requested_threads, "\n",
     "Total execution time:", total_exec_time, "seconds", "\n",
-    "Deseq2 execution time:", deseq_time, "seconds", "\n",
-    "Threshold calculation time:", threshold_time, "seconds", "\n",
-    "Net build execution time:", net_build_time, "seconds", "\n",
-    "Expression profiles plot time:", exp_plot_time, "seconds", "\n",
-    "\n", "-------------------------------------------------", "\n\n",
+    "Phase timing:", "\n",
+    paste(detailed_lines, collapse = "\n"), "\n\n",
+    "-------------------------------------------------", "\n\n",
     file = "execution_time.txt",
     append = TRUE
+  )
+
+  # Create data frame with times
+  timing_record <- data.frame(
+    started_at = format(run_context$start_time, "%Y-%m-%dT%H:%M:%OS3%z"),
+    ended_at = format(run_context$end_time, "%Y-%m-%dT%H:%M:%OS3%z"),
+    mode = run_context$mode,
+    status = run_context$status,
+    picked_power = run_context$picked_power,
+    threads_requested = run_context$threads_requested,
+    total_execution_seconds = total_exec_time,
+    as.list(phase_times),
+    check.names = FALSE
+  )
+
+  # Write execution time table
+  tsv_exists <- file.exists("execution_time.tsv")
+  write.table(
+    timing_record,
+    file = "execution_time.tsv",
+    sep = "\t",
+    row.names = FALSE,
+    col.names = !tsv_exists,
+    quote = FALSE,
+    append = tsv_exists
   )
 }
 
 main <- function() {
+  run_start_time <- Sys.time()
+  phase_times <- stats::setNames(
+    rep(NA_real_, length(timing_phase_labels)),
+    names(timing_phase_labels)
+  )
+
   # Load libraries
   suppressWarnings(suppressPackageStartupMessages({
     library(WGCNA)
@@ -1129,27 +1198,27 @@ main <- function() {
     pheno_dt <- pheno_dt[, -1, drop = FALSE]
   }
 
-  start_time <- Sys.time()
+  phase_times[["initialization_input"]] <- elapsed_seconds(run_start_time, Sys.time())
 
   # Count normalization (using DESeq2)
-  deseq_time_start <- Sys.time()
+  phase_start_time <- Sys.time()
 
   count_normalization_res <- count_normalization(dt_counts)
   vst_for_wgcna <- count_normalization_res$vst_for_wgcna
   vst_mat <- count_normalization_res$vst_mat
 
-  deseq_time_end <- Sys.time()
+  phase_times[["deseq2_normalization"]] <- elapsed_seconds(phase_start_time, Sys.time())
   cat("Count normalization done \n")
 
   # Threshold calculation
   cat("threshold calculation started \n")
-  threshold_calc_time_start <- Sys.time()
+  phase_start_time <- Sys.time()
 
   # Soft threshold calculation
   if (opt$mode == "automatic") {
     sft_results <- threshold_calculation_automatic(
       vst_for_wgcna = vst_for_wgcna,
-      max_power = 50,
+      max_power = 30,
       delta_min = 0.01,
       min_length = 3
     )
@@ -1161,17 +1230,35 @@ main <- function() {
     if (opt$mode == "manual" && is.na(opt$threshold)) {
       sft_results <- threshold_calculation_manual(
         vst_for_wgcna = vst_for_wgcna,
-        max_power = 50
+        max_power = 30
       )
 
       sft <- sft_results$sft
       powers <- sft_results$powers
 
+      save_sft_results(sft)
+      phase_times[["threshold_selection"]] <- elapsed_seconds(phase_start_time, Sys.time())
+
       # Plot Softhreshold charts
+      phase_start_time <- Sys.time()
       plot_threshold_charts(sft, 0, powers)
 
       # Save data
       save(sft, powers, file = "sft_p.RData")
+      phase_times[["threshold_reporting"]] <- elapsed_seconds(phase_start_time, Sys.time())
+
+      run_end_time <- Sys.time()
+      write_exec_time(
+        list(
+          start_time = run_start_time,
+          end_time = run_end_time,
+          mode = opt$mode,
+          status = "awaiting_manual_threshold",
+          picked_power = NA_real_,
+          threads_requested = opt$threads
+        ),
+        phase_times
+      )
 
       cat(
         "Check the 'threshold' chart and choose a value for soft threshold.", "\n",
@@ -1188,26 +1275,31 @@ main <- function() {
       picked_power <- opt$threshold
     }
   }
+  phase_times[["threshold_selection"]] <- elapsed_seconds(phase_start_time, Sys.time())
 
-  threshold_calc_time_end <- Sys.time()
-  cat("threshold calculation finished \n")
+  phase_start_time <- Sys.time()
+  save_sft_results(sft)
+  save_threshold_selection(opt$mode, picked_power)
 
   # Plot Softhreshold charts
   cat("plot threshold started \n")
   plot_threshold_charts(sft, picked_power, powers)
+  phase_times[["threshold_reporting"]] <- elapsed_seconds(phase_start_time, Sys.time())
+  cat("threshold calculation finished \n")
   cat("plot threshold finished \n")
 
   # Network build
   cat("network build started \n")
-  net_build_time_start <- Sys.time()
+  phase_start_time <- Sys.time()
 
   network <- network_build(vst_for_wgcna, picked_power)
 
-  net_build_time_end <- Sys.time()
+  phase_times[["network_build"]] <- elapsed_seconds(phase_start_time, Sys.time())
   cat("network build finished \n")
 
   # Cluster plot
   cat("plot dendrogram started \n")
+  phase_start_time <- Sys.time()
   colors <- plot_dendrogram(network = network)
   cat("plot dendrogram finished \n")
 
@@ -1216,14 +1308,18 @@ main <- function() {
 
   # Plot barplot
   plot_bar(gene_modules)
+  phase_times[["module_summary"]] <- elapsed_seconds(phase_start_time, Sys.time())
 
   # Identify and save eigengenes for each module
+  phase_start_time <- Sys.time()
   eigen_results <- identify_eigengenes(vst_for_wgcna, colors)
   eigengenes_matrix_m <- eigen_results$eigengenes_matrix_m
   eigengenes_matrix <- eigen_results$eigengenes_matrix
+  phase_times[["eigengenes"]] <- elapsed_seconds(phase_start_time, Sys.time())
 
   # Calculate and plot module-phenodata correlations
   if (!is.na(opt$phenodata)) {
+    phase_start_time <- Sys.time()
     # Calculate module phenotype correlation
     modpheno_res <- calculate_modpheno_correlation(
       pheno_dt,
@@ -1245,6 +1341,7 @@ main <- function() {
         module_pheno_pvalue
       )
     }
+    phase_times[["module_phenotype"]] <- elapsed_seconds(phase_start_time, Sys.time())
   }
 
   if (length(unique(network$colors)) > 50) {
@@ -1252,46 +1349,55 @@ main <- function() {
     cat("It is still possible to consult relevant informations present in the eigengenes_matrix_m.tsv file.\n")
   } else {
     # Generate and save heatmap chart
+    phase_start_time <- Sys.time()
     plot_heatmap(eigengenes_matrix_m, eigengenes_matrix)
+    phase_times[["sample_heatmap"]] <- elapsed_seconds(phase_start_time, Sys.time())
   }
 
   # Generate and save gene modules expression profiles
   cat("Generating gene expression profiles charts ... \n")
-  exp_plot_time_start <- Sys.time()
+  phase_start_time <- Sys.time()
 
   plot_expression_profiles(vst_mat, gene_modules, opt$workdir)
 
-  exp_plot_time_end <- Sys.time()
+  phase_times[["expression_profiles"]] <- elapsed_seconds(phase_start_time, Sys.time())
 
   if (!is.na(opt$phenodata)) {
     cat("Generating box plots ...\n")
+    phase_start_time <- Sys.time()
     plot_boxplots(pheno_dt, colors, eigengenes_matrix_m)
+    phase_times[["boxplots"]] <- elapsed_seconds(phase_start_time, Sys.time())
   }
 
   # Identify hub gene for each module
   cat("Identifying hub gene for each module ... \n")
+  phase_start_time <- Sys.time()
   identify_hub_genes(vst_for_wgcna, colors, picked_power)
+  phase_times[["hub_genes"]] <- elapsed_seconds(phase_start_time, Sys.time())
   cat("Hub genes correctly identified.\n")
 
   # Plot top gene network graph
+  phase_start_time <- Sys.time()
   plot_top_gene_network(vst_for_wgcna, picked_power, network, colors)
+  phase_times[["top_gene_networks"]] <- elapsed_seconds(phase_start_time, Sys.time())
 
-  end_time <- Sys.time()
+  run_end_time <- Sys.time()
 
   # Write execution time to file
   write_exec_time(
-    start_time,
-    end_time,
-    deseq_time_start,
-    deseq_time_end,
-    threshold_calc_time_start,
-    threshold_calc_time_end,
-    net_build_time_start,
-    net_build_time_end,
-    exp_plot_time_start,
-    exp_plot_time_end
+    list(
+      start_time = run_start_time,
+      end_time = run_end_time,
+      mode = opt$mode,
+      status = "completed",
+      picked_power = picked_power,
+      threads_requested = opt$threads
+    ),
+    phase_times
   )
 
 }
 
-main()
+if (sys.nframe() == 0L) {
+  main()
+}

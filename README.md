@@ -64,7 +64,7 @@ Below are all the functions in the script along with their purpose:
 
 - `identify_hub_genes()`: function that calculates the hub genes of each individual module.
 
-- `writeExecTime()`: function that calculates execution time of the script and submodules and prints them to a text file.
+- `write_exec_time()`: records total and phase execution times in `execution_time.txt` and `execution_time.tsv`.
 
 
 ## Installation
