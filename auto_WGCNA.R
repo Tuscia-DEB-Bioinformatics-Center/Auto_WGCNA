@@ -492,7 +492,7 @@ save_colors_list <- function(network) {
   # Get the list of modules
   gene_modules <- data.frame(
     gid = names(network$colors),
-    color = labels2colors(network$colors)
+    color = WGCNA::labels2colors(network$colors)
   )
 
   # Save list of colors to file
@@ -506,7 +506,7 @@ save_colors_list <- function(network) {
   )
   cat("Modules list saved to file\n")
 
-  return(gene_modules)
+  gene_modules
 }
 
 plot_bar <- function(gene_modules) {
@@ -559,7 +559,7 @@ identify_eigengenes <- function(vst_for_wgcna, colors) {
   eigengenes_matrix <- WGCNA::orderMEs(eigengenes_matrix)
   module_order <- gsub("ME", "", names(eigengenes_matrix))
 
-  # ...
+  # Add sample column
   eigengenes_matrix$sample <- row.names(eigengenes_matrix)
 
   # Convert dataframe in sample, name, value
@@ -578,11 +578,9 @@ identify_eigengenes <- function(vst_for_wgcna, colors) {
     quote = FALSE
   )
 
-  return(
-    list(
-      eigengenes_matrix = eigengenes_matrix,
-      eigengenes_matrix_m = eigengenes_matrix_m
-    )
+  list(
+    eigengenes_matrix = eigengenes_matrix,
+    eigengenes_matrix_m = eigengenes_matrix_m
   )
 }
 
@@ -598,7 +596,10 @@ calculate_modpheno_correlation <- function(pheno_dt, eigengenes_matrix) {
 
   # Print eigengenes matrix to file
   write.table(
-    eigengenes_matrix[, !(names(eigengenes_matrix) %in% c("sample"))],
+    eigengenes_matrix[,
+      !(names(eigengenes_matrix) %in% c("sample")),
+      drop = FALSE
+    ],
     file = "eigengenes_matrix.tsv",
     sep = "\t",
     row.names = FALSE,
@@ -607,7 +608,10 @@ calculate_modpheno_correlation <- function(pheno_dt, eigengenes_matrix) {
 
   # Create module x phenotype matrix
   module_phenodata_cor <- cor(
-    eigengenes_matrix[, !(names(eigengenes_matrix) %in% c("sample"))],
+    eigengenes_matrix[,
+      !(names(eigengenes_matrix) %in% c("sample")),
+      drop = FALSE
+    ],
     pheno_num_dt,
     use = "p"
   )
@@ -632,11 +636,9 @@ calculate_modpheno_correlation <- function(pheno_dt, eigengenes_matrix) {
     quote = FALSE
   )
 
-  return(
-    list(
-      module_phenodata_cor = module_phenodata_cor,
-      module_pheno_pvalue = module_pheno_pvalue
-    )
+  list(
+    module_phenodata_cor = module_phenodata_cor,
+    module_pheno_pvalue = module_pheno_pvalue
   )
 }
 
@@ -923,7 +925,7 @@ plot_boxplots <- function(pheno_dt, colors, eigengenes_matrix_m) {
 
 identify_hub_genes <- function(vst_for_wgcna, colors, picked_power) {
   # Calculate hub genes for each module
-  hubs <- chooseTopHubInEachModule(
+  hubs <- WGCNA::chooseTopHubInEachModule(
     datExpr = vst_for_wgcna,
     colorh = colors,          # modules colors
     power = picked_power,     # power used for adjacency network
