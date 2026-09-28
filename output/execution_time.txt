@@ -1,8 +1,24 @@
-Total execution time: 338.4242 seconds 
- Deseq2 execution time: 3.573593 seconds 
- Threshold calculation time: 30.942 seconds 
- Net build execution time: 101.6315 seconds 
- Expression profiles plot time: 82.4734 seconds 
- 
+Run started at: 2026-09-28T16:14:14.007+0200 
+ Run ended at: 2026-09-28T16:20:16.630+0200 
+ Mode: automatic 
+ Status: completed 
+ Picked power: 14 
+ Requested threads: 11 
+ Total execution time: 362.6233 seconds 
+ Phase timing: 
+ Initialization and input time : 5.38045406341553 seconds
+Deseq2 execution time : 3.37046027183533 seconds
+Threshold calculation time : 26.6541185379028 seconds
+Threshold reporting and plot time : 0.378728628158569 seconds
+Net build execution time : 98.7197303771973 seconds
+Dendrogram, module export and barplot time : 1.81141448020935 seconds
+Eigengenes calculation and export time : 0.560992479324341 seconds
+Module-phenotype correlation and heatmap time : 0.591750144958496 seconds
+Module-sample heatmap time : 4.60049557685852 seconds
+Expression profiles plot time : 85.833354473114 seconds
+Boxplots time : 118.882396221161 seconds
+Hub genes identification time : 0.871685743331909 seconds
+Top gene networks plot time : 14.9666230678558 seconds 
+
  ------------------------------------------------- 
 
